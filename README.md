@@ -54,7 +54,7 @@ You can add upload options using the upload_options plugin or using
 `:upload_options` on the storage:
 
 ```rb
-Shrine::Storage::Cloudinary.new(upload_options: {...}, **uploadcare_options)
+Shrine::Storage::Uploadcare.new(upload_options: {...}, **uploadcare_options)
 ```
 
 ### Storing information
