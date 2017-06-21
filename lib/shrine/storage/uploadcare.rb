@@ -1,7 +1,6 @@
 require "shrine"
 require "uploadcare"
 require "down"
-require "net/http"
 require "uri"
 require "digest"
 
@@ -24,16 +23,8 @@ class Shrine
         update_id!(id, result)
       end
 
-      def download(id)
-        Down.download(url(id))
-      end
-
       def open(id)
         Down.open(url(id))
-      end
-
-      def read(id)
-        Net::HTTP.get(URI(url(id)))
       end
 
       def exists?(id)
