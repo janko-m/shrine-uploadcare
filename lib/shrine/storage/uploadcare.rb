@@ -38,15 +38,6 @@ class Shrine
         api_client.delete("/files/#{id}/storage/")
       end
 
-      def multi_delete(ids)
-        ids, rest = ids.take(100), Array(ids[100..-1])
-        response = api_client.delete("/files/storage/") do |request|
-          request.body = ids.to_json
-          request.headers["Content-Type"] = "application/json"
-        end
-        multi_delete(rest) unless rest.empty?
-      end
-
       def url(id, **options)
         operations = options.to_a.map { |operation| operation.flatten.join("/") }
         file(id, operations).cdn_url(true)
