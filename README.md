@@ -125,7 +125,7 @@ $ rake test
 [MIT](http://opensource.org/licenses/MIT)
 
 [Uploadcare]: https://uploadcare.com/
-[Shrine]: https://github.com/janko-m/shrine
+[Shrine]: https://github.com/shrinerb/shrine
 [HTML widget]: https://uploadcare.com/documentation/widget/
 [demo app]: /demo
 [Secure file uploads]: https://uploadcare.com/documentation/upload/#secure-uploads
