@@ -70,6 +70,15 @@ describe Shrine::Storage::Uploadcare do
     end
   end
 
+  describe "#open" do
+    it "accepts additional options" do
+      @uploadcare.upload(image, id = "foo")
+      sleep 1 # it takes time for Uploadcare to persist the file
+      io = @uploadcare.open(id, rewindable: false)
+      assert_raises(IOError) { io.rewind }
+    end
+  end
+
   describe "#url" do
     it "generates URLs with and without operations" do
       id = "0d2f95b1-2fcb-4a54-aa8f-b467bb4d26e5"

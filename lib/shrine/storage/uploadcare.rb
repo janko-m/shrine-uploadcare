@@ -1,6 +1,6 @@
 require "shrine"
 require "uploadcare"
-require "down"
+require "down/http"
 require "uri"
 require "digest"
 
@@ -23,8 +23,8 @@ class Shrine
         update_id!(id, result)
       end
 
-      def open(id)
-        Down.open(url(id))
+      def open(id, **options)
+        Down::Http.open(url(id), **options)
       end
 
       def exists?(id)
