@@ -47,7 +47,7 @@ class Shrine
         response = api_client.get("/files/", stored: true, limit: 1000)
         loop do
           uuids = response.body["results"].map { |result| result.fetch("uuid") }
-          multi_delete(uuids) unless uuids.empty?
+          batch_delete(uuids) unless uuids.empty?
           return if (next_url = response.body["next"]).nil?
           response = api_client.get(URI(next_url).request_uri)
         end
@@ -124,6 +124,15 @@ class Shrine
         {"uuid" => response.body.fetch("file")}
       rescue ::Uploadcare::Error::RequestError::Forbidden => error
         raise Error, "You must allow \"automatic file storing\" in project settings"
+      end
+
+      def batch_delete(ids)
+        ids.each_slice(100) do |ids_slice|
+          api_client.delete("/files/storage/") do |request|
+            request.body = ids_slice.to_json
+            request.headers["Content-Type"] = "application/json"
+          end
+        end
       end
 
       def api_client
