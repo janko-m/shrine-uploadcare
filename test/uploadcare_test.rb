@@ -38,6 +38,7 @@ describe Shrine::Storage::Uploadcare do
 
     it "uploads remote files" do
       remote_file = @uploader.upload(image)
+      sleep 1 # it takes time for Uploadcare to persist the file
       @uploadcare.instance_eval { def uploadcare_file?(io) false end }
       @uploadcare.upload(remote_file, id = "foo")
       response = @uploadcare.send(:api_client).get("/files/#{id}/")
