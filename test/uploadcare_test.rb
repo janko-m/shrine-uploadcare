@@ -30,14 +30,14 @@ describe Shrine::Storage::Uploadcare do
     end
 
     it "applies upload options" do
-      @uploadcare = uploadcare(upload_options: {UPLOADCARE_STORE: 0})
+      @uploadcare = uploadcare(upload_options: { UPLOADCARE_STORE: 0 })
       @uploadcare.upload(image, id = "foo")
       response = @uploadcare.send(:api_client).get("/files/#{id}/")
       assert_equal nil, response.body.fetch("datetime_stored")
     end
 
     it "uploads remote files" do
-      remote_file = @uploader.upload(image)
+      remote_file = @uploader.upload(image, upload_options: { UPLOADCARE_STORE: 1 })
       sleep 1 # it takes time for Uploadcare to persist the file
       @uploadcare.instance_eval { def uploadcare_file?(io) false end }
       @uploadcare.upload(remote_file, id = "foo")
@@ -73,7 +73,7 @@ describe Shrine::Storage::Uploadcare do
 
   describe "#open" do
     it "accepts additional options" do
-      @uploadcare.upload(image, id = "foo")
+      @uploadcare.upload(image, id = "foo", upload_options: { UPLOADCARE_STORE: 1 })
       sleep 1 # it takes time for Uploadcare to persist the file
       io = @uploadcare.open(id, rewindable: false)
       assert_raises(IOError) { io.rewind }
@@ -95,16 +95,16 @@ describe Shrine::Storage::Uploadcare do
   describe "#presign" do
     it "generates a data for direct upload" do
       presign = @uploadcare.presign
-      url, params = presign.url, presign.fields
-      params[:file] = Faraday::UploadIO.new(image, "image/jpeg")
-      params[:UPLOADCARE_STORE] = 1
       faraday = Faraday.new do |b|
         b.request :multipart
         b.request :url_encoded
         b.adapter :net_http
         b.response :parse_json
       end
-      result = faraday.post(url, params).body
+      result = faraday.post(presign[:url], presign[:fields].merge(
+        file: Faraday::UploadIO.new(image, "image/jpeg"),
+        UPLOADCARE_STORE: 1,
+      )).body
       assert @uploadcare.exists?(result.fetch("file"))
     end
   end

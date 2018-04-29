@@ -67,7 +67,7 @@ class Shrine
 
         url = upload_client.url_prefix + "base/"
 
-        Struct.new(:url, :fields).new(url, fields)
+        { method: :post, url: url, fields: fields }
       end
 
       protected
