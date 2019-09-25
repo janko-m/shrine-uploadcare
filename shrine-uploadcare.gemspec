@@ -16,7 +16,7 @@ Gem::Specification.new do |gem|
   gem.add_dependency "shrine", ">= 2.11", "< 4"
   gem.add_dependency "uploadcare-ruby", "~> 1.0.5"
   gem.add_dependency "down", "~> 4.4"
-  gem.add_dependency "http", "~> 3.2"
+  gem.add_dependency "http", ">= 3.2", "< 5"
 
   gem.add_development_dependency "rake"
   gem.add_development_dependency "minitest"
