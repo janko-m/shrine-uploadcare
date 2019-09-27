@@ -1,5 +1,8 @@
 require "test_helper"
 require "shrine/storage/linter"
+require "securerandom"
+require "http"
+require "json"
 
 describe Shrine::Storage::Uploadcare do
   def uploadcare(**options)
@@ -21,73 +24,58 @@ describe Shrine::Storage::Uploadcare do
   end
 
   it "passes the linter" do
-    Shrine::Storage::Linter.new(uploadcare).call(->{image})
+    linter = Shrine::Storage::Linter.new(uploadcare, nonexisting: SecureRandom.uuid)
+    linter.call(->{image})
   end
 
   describe "#upload" do
     it "uploads IOs" do
-      @uploadcare.upload(FakeIO.new(image.read), id = "foo")
-    end
+      file = @uploadcare.upload(FakeIO.new(image.read), "foo")
 
-    it "applies upload options" do
-      @uploadcare = uploadcare(upload_options: { UPLOADCARE_STORE: 0 })
-      @uploadcare.upload(image, id = "foo")
-      response = @uploadcare.send(:api_client).get("/files/#{id}/")
-      assert_equal nil, response.body.fetch("datetime_stored")
+      assert @uploadcare.exists?(file.uuid)
     end
 
     it "uploads remote files" do
-      remote_file = @uploader.upload(image, upload_options: { UPLOADCARE_STORE: 1 })
-      sleep 1 # it takes time for Uploadcare to persist the file
-      @uploadcare.instance_eval { def uploadcare_file?(io) false end }
-      @uploadcare.upload(remote_file, id = "foo")
-      response = @uploadcare.send(:api_client).get("/files/#{id}/")
-      refute_equal nil, response.body.fetch("datetime_stored")
-    end
+      uploaded_file = @uploader.upload(image)
+      file = @uploadcare.upload(uploaded_file, "foo")
 
-    it "uploads uploadcare files" do
-      uploadcare_file = @uploader.upload(image)
-      @uploadcare.upload(uploadcare_file, id = "foo")
-      response = @uploadcare.send(:api_client).get("/files/#{id}/")
-      refute_equal nil, response.body.fetch("datetime_stored")
+      assert @uploadcare.exists?(file.uuid)
     end
 
     it "updates metadata" do
-      @uploader.instance_eval { def extract_metadata(*) {"mime_type" => "image/jpeg"} end }
-      uploadcare_file = @uploader.upload(image)
-      uploaded_file = @uploader.upload(uploadcare_file)
+      uploaded_file = @uploader.upload(image)
+
       assert_equal "image/jpeg", uploaded_file.metadata["mime_type"]
       assert_equal 100,          uploaded_file.metadata["width"]
       assert_equal 67,           uploaded_file.metadata["height"]
       assert_equal image.size,   uploaded_file.metadata["size"]
-    end
-
-    it "can store info" do
-      @uploadcare.instance_variable_set("@store_info", true)
-      uploadcare_file = @uploader.upload(image)
-      uploaded_file = @uploader.upload(uploadcare_file)
-      refute_empty uploaded_file.metadata["uploadcare"]
-      refute_empty uploaded_file.metadata["uploadcare"]["image_info"]
+      assert_equal [72, 72],     uploaded_file.metadata["dpi"]
     end
   end
 
   describe "#open" do
     it "accepts additional options" do
-      @uploadcare.upload(image, id = "foo", upload_options: { UPLOADCARE_STORE: 1 })
-      sleep 1 # it takes time for Uploadcare to persist the file
-      io = @uploadcare.open(id, rewindable: false)
-      assert_raises(IOError) { io.rewind }
+      file = @uploadcare.upload(image, "foo")
+      io   = @uploadcare.open(file.uuid, rewindable: false)
+
+      refute io.rewindable?
+    end
+
+    it "raises Shrine::FileNotFound on missing file" do
+      assert_raises Shrine::FileNotFound do
+        @uploadcare.open(SecureRandom.uuid)
+      end
     end
   end
 
   describe "#url" do
     it "generates URLs with and without operations" do
-      id = "0d2f95b1-2fcb-4a54-aa8f-b467bb4d26e5"
+      id = SecureRandom.uuid
 
       assert_match %r{#{id}/$}, @uploadcare.url(id)
 
-      assert_match %r{#{id}/-/quality/normal/$}, @uploadcare.url(id, quality: :normal)
-      assert_match %r{#{id}/-/crop/200x300/center/$}, @uploadcare.url(id, crop: ['200x300', :center])
+      assert_match %r{#{id}/-/quality/normal/$},                @uploadcare.url(id, quality: :normal)
+      assert_match %r{#{id}/-/crop/200x300/center/$},           @uploadcare.url(id, crop: ['200x300', :center])
       assert_match %r{#{id}/-/resize/200x/-/progressive/yes/$}, @uploadcare.url(id, resize: '200x', progressive: :yes)
     end
   end
@@ -95,16 +83,14 @@ describe Shrine::Storage::Uploadcare do
   describe "#presign" do
     it "generates a data for direct upload" do
       presign = @uploadcare.presign
-      faraday = Faraday.new do |b|
-        b.request :multipart
-        b.request :url_encoded
-        b.adapter :net_http
-        b.response :parse_json
-      end
-      result = faraday.post(presign[:url], presign[:fields].merge(
-        file: Faraday::UploadIO.new(image, "image/jpeg"),
+
+      response = HTTP.post presign[:url], form: presign[:fields].merge(
+        file: HTTP::FormData::File.new(image, content_type: "image/jpeg"),
         UPLOADCARE_STORE: 1,
-      )).body
+      )
+
+      result = JSON.parse(response.body.to_s)
+
       assert @uploadcare.exists?(result.fetch("file"))
     end
   end
