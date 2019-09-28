@@ -8,7 +8,7 @@ with an advanced HTML widget for direct uploads.
 ## Installation
 
 ```ruby
-gem "shrine-uploadcare"
+gem "shrine-uploadcare", "~> 1.0"
 ```
 
 ## Usage
